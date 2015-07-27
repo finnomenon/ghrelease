@@ -1,29 +1,71 @@
 require 'net/http'
 require 'json'
 
-owner     = ENV["OWNER"]
-gh_token  = ENV["OTOKEN"]
+OWNER     = ENV["OWNER"]
+GH_TOKEN  = ENV["OTOKEN"]
 
-repo      = ARGV[0].to_s
-rel_name  = ARGV[1].to_s
+repo = ''
+rel_name = ''
+
+args = ARGV.each
+files = []
+
+loop do
+  arg = args.next
+  case arg
+  when "--artifact"
+    arg = args.next
+    repo = arg
+  when "--version"
+    arg = args.next
+    rel_name = arg
+  else
+    files << arg
+  end
+
+  if arg == ARGV.last
+    break
+  end
+end
 
 baseurl   = "https://api.github.com/"
-data_type = "application/octet-stream"
+DATA_TYPE = "application/octet-stream"
 
-create_uri = URI("#{baseurl}repos/#{owner}/#{repo}/releases")
+def sendRequest(method, url, body)
+  uri = URI(url)
+  body_json = body.to_json
+  method_class = method == 'get' ? Net::HTTP::Get : Net::HTTP::Post
+  req = method_class.new(uri)
+  req.basic_auth OWNER, GH_TOKEN
+  req.content_type = DATA_TYPE
+  req.body = body_json
 
-body_hash = { :tag_name => rel_name }
-body_json = JSON.generate(body_hash)
+  res = Net::HTTP.start(uri.hostname, uri.port, :use_ssl => true) { | http |
+    http.request(req)
+  }
 
-req = Net::HTTP::Post.new(create_uri)
-req.basic_auth owner, gh_token
-req.content_type = data_type
-req.body = body_json
+  JSON.parse(res.body)
+end
 
-params = { :tag_name => rel_name }
+get_url = "#{baseurl}repos/#{OWNER}/#{repo}/releases/tags/#{rel_name}"
+res = sendRequest('get', get_url, {})
 
-res = Net::HTTP.start(create_uri.hostname, create_uri.port, :use_ssl => true) { |http|
-  http.request(req)
+unless res.has_key? "upload_url"
+  create_url = "#{baseurl}repos/#{OWNER}/#{repo}/releases"
+  res = sendRequest('post', create_url, { :tag_name => rel_name })
+end
+
+unless res.has_key? "upload_url"
+  raise "Could not find or create release"
+end
+
+files.each { | file_name |
+  upload_url = res['upload_url'].sub '{?name}', '?name=' + file_name
+  file_data = File.read(file_name)
+  upload_res = sendRequest('post', upload_url, file_data);
+  if upload_res.has_key? 'url'
+    puts "Uploaded #{file_name}"
+  else
+    puts "Error uploading #{file_name}: #{upload_res['errors'][0]['code']}"
+  end
 }
-
-puts res.body
