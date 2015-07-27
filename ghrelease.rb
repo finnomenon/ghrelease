@@ -39,10 +39,6 @@ unless res.has_key? "upload_url"
   raise "Could not find or create release"
 end
 
-upload_url = res['upload_url']
-
-puts upload_url
-
-#file_data = File.read(file_name)
-
-#puts file_data
+upload_url = res['upload_url'].sub '{?name}', '?name=' + file_name
+file_data = File.read(file_name)
+res = sendRequest('post', upload_url, file_data);
