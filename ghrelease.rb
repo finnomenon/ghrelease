@@ -4,9 +4,29 @@ require 'json'
 OWNER     = ENV["OWNER"]
 GH_TOKEN  = ENV["OTOKEN"]
 
-repo      = ARGV[0].to_s
-rel_name  = ARGV[1].to_s
-file_name = ARGV[2].to_s
+repo = ''
+rel_name = ''
+
+args = ARGV.each
+files = []
+
+loop do
+  arg = args.next
+  case arg
+  when "--artifact"
+    arg = args.next
+    repo = arg
+  when "--version"
+    arg = args.next
+    rel_name = arg
+  else
+    files << arg
+  end
+
+  if arg == ARGV.last
+    break
+  end
+end
 
 baseurl   = "https://api.github.com/"
 DATA_TYPE = "application/octet-stream"
@@ -39,6 +59,13 @@ unless res.has_key? "upload_url"
   raise "Could not find or create release"
 end
 
-upload_url = res['upload_url'].sub '{?name}', '?name=' + file_name
-file_data = File.read(file_name)
-res = sendRequest('post', upload_url, file_data);
+files.each { | file_name |
+  upload_url = res['upload_url'].sub '{?name}', '?name=' + file_name
+  file_data = File.read(file_name)
+  upload_res = sendRequest('post', upload_url, file_data);
+  if upload_res.has_key? 'url'
+    puts "Uploaded #{file_name}"
+  else
+    puts "Error uploading #{file_name}: #{upload_res['errors'][0]['code']}"
+  end
+}
