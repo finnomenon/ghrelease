@@ -16,12 +16,12 @@ options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: ghrelease.rb [options] [files]"
 
-  opts.on("-a", "--artifact", "artifact") do |a|
-   options[:artifact] = a
+  opts.on("-a", "--artifact ARTIFACT") do |a|
+    options[:artifact] = a
   end
 
-  opts.on("-v", "--version", "version") do |a|
-   options[:version] = a
+  opts.on("-v", "--version VERSION") do |a|
+    options[:version] = a
   end
 end.parse!
 
