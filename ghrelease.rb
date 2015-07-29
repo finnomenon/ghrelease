@@ -1,5 +1,7 @@
 require 'net/http'
 require 'json'
+require 'optparse'
+
 
 OWNER     = ENV["OWNER"]
 GH_TOKEN  = ENV["OTOKEN"]
@@ -7,26 +9,29 @@ GH_TOKEN  = ENV["OTOKEN"]
 repo = ''
 rel_name = ''
 
-args = ARGV.each
 files = []
+options = {}
 
-loop do
-  arg = args.next
-  case arg
-  when "--artifact"
-    arg = args.next
-    repo = arg
-  when "--version"
-    arg = args.next
-    rel_name = arg
-  else
-    files << arg
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: ghrelease.rb [options] [files]"
+
+  opts.on("-a", "--artifact", "artifact") do |a|
+   options[:artifact] = a
   end
 
-  if arg == ARGV.last
-    break
+  opts.on("-v", "--version", "version") do |a|
+   options[:version] = a
   end
+end.parse!
+
+repo = options[:artifact]
+rel_name = options[:version]
+
+ARGV.each do |arg|
+ files << arg
 end
+
 
 baseurl   = "https://api.github.com/"
 DATA_TYPE = "application/octet-stream"
